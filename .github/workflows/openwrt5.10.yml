@@ -167,25 +167,29 @@ jobs:
         [ $UPLOAD_COWTRANSFER = true ] && echo "🔗 [国内NN网盘](${{ steps.cowtransfer.outputs.url }})" >> release.txt
         [ $UPLOAD_WETRANSFER = true ] && echo "🔗 [国外WT网盘](${{ steps.wetransfer.outputs.url }})" >> release.txt
         echo "::set-output name=status::success"
-    - name: 发布至release
+    
+    - name: Create release
+      id: create_release
+      if: env.REPO_TOKEN && env.UPLOAD_FIRMWARE_FOR_RELEASE == 'true'
+      continue-on-error: true
+      run: |
+        echo -e "墙内加速下载 🚀:\n" >> release.txt
+        echo -e "[腾讯云] (https://op.supes.top/firmware/${{matrix.target}}/ ☁)\n" >> release.txt
+        [ ${{ env.WETRANS }} ] && echo -e "[WeTransfer] (${{ env.WETRANS }} 🗽)\n" >> release.txt
+        [ ${{ env.COWURL }} ] && echo -e "[奶牛上传] (${{ env.COWURL }} 🐮)\n" >> release.txt
+        [ ${{ env.NOTICE }} ] && echo -e "${{ env.NOTICE }}" >> release.txt || true
+    
+    - name: Upload firmware for release
       uses: softprops/action-gh-release@v1
-      if: steps.tag.outputs.status == 'success' && !cancelled()
+      continue-on-error: true
+      if: env.REPO_TOKEN && env.UPLOAD_FIRMWARE_FOR_RELEASE == 'true'
       env:
-        GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+        GITHUB_TOKEN: ${{ secrets.REPO_TOKEN }}
       with:
-        name: ${{ env.FILE_TIME }} 「 openwrt5.10-X86-64 」
-        tag_name: ${{ steps.tag.outputs.release_tag }}
+        files: "${{ env.FIRMWARE }}/*"
+        name: ${{ env.date2 }} ${{matrix.target}} ${{ env.EMOJI }}
+        tag_name: ${{ env.date }}_${{matrix.target}}
         body_path: release.txt
-        files: ${{ env.FIRMWARE }}/*
-
-    - name: 删除旧的Releases
-      uses: dev-drprasad/delete-older-releases@v0.1.0
-      if: env.UPLOAD_RELEASE == 'true' && !cancelled()
-      with:
-        keep_latest: 9
-        delete_tags: true
-      env:
-        GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN }}
 
     - name: 微信报告
       uses: emon100/Action-Serverchan@master
